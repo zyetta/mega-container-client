@@ -3,8 +3,9 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [ "main" ]
-    # Publish tags as releases.
-    tags: [ 'v*.*.*' ]
+    paths-ignore:
+      - 'README.md'
+      - 'VERSION'
   workflow_dispatch:
 
 env:
@@ -22,6 +23,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Read Version
+        id: version
+        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
 
       # 1. Set up QEMU to allow building ARM64 images on GitHub's Intel runners
       - name: Set up QEMU
@@ -47,7 +52,8 @@ jobs:
           images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=semver,pattern={{version}}
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+            type=raw,value=${{ steps.version.outputs.VERSION }}.${{ github.run_number }}
 
       # 5. Build and Push
       - name: Build and push Docker image
