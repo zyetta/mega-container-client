@@ -36,5 +36,7 @@ else
     done
 fi
 
+/monitor.sh &
+
 touch /root/.megaCmd/megacmd.log
 tail -f /root/.megaCmd/megacmd.log

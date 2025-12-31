@@ -6,6 +6,7 @@ It handles:
 * **2FA Authentication**: Persists session via volumes so you only login once.
 * **Auto-Sync**: Automatically configures sync pairs using environment variables.
 * **Auto-Healing**: Checks sync status on container restarts.
+* **Monitoring & Alerts**: Logs transactions and sends Gotify alerts on errors.
 
 ## Quick Start
 
@@ -24,6 +25,10 @@ services:
       # Pair 2
       - SYNC_LOCAL_2=/data/photos
       - SYNC_REMOTE_2=/CloudDrive/Photos
+      
+      # Monitoring (Optional)
+      - GOTIFY_URL=https://gotify.example.com
+      - GOTIFY_TOKEN=your_app_token
     volumes:
       # CONFIG: Stores your login session (CRITICAL)
       - ./mega-session:/root/.megaCmd
@@ -76,6 +81,8 @@ You can add as many sync pairs as needed by incrementing the number (up to 10 by
 | --- | --- |
 | SYNC_LOCAL_X | The path inside the container (mapped to your host) |
 | SYNC_REMOTE_X | The path on your MEGA Cloud Drive |
+| GOTIFY_URL | (Optional) URL of your Gotify server |
+| GOTIFY_TOKEN | (Optional) Gotify Application Token |
 
 ### Volumes
 
@@ -105,8 +112,8 @@ To bump the major/minor version, edit the `VERSION` file.
 To prevent accidental pushes to the `main` branch, install the git hooks:
 
 ```bash
-chmod +x install_hooks.sh
-./install_hooks.sh
+chmod +x scripts/install_hooks.sh
+./scripts/install_hooks.sh
 ```
 
 This installs a `pre-push` hook that blocks direct pushes to `main`. To bypass it (emergency only):
