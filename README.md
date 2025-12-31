@@ -90,3 +90,27 @@ If you want to build this image yourself instead of pulling from Docker Hub:
 ```bash
 docker compose build
 ```
+
+## Development
+
+### Versioning
+
+The project uses a `VERSION` file to define the Major.Minor version (e.g., `1.0`).
+GitHub Actions automatically appends the build number to create the full tag (e.g., `1.0.42`).
+
+To bump the major/minor version, edit the `VERSION` file.
+
+### Safety Hooks
+
+To prevent accidental pushes to the `main` branch, install the git hooks:
+
+```bash
+chmod +x install_hooks.sh
+./install_hooks.sh
+```
+
+This installs a `pre-push` hook that blocks direct pushes to `main`. To bypass it (emergency only):
+
+```bash
+git push --no-verify
+```
