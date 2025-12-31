@@ -1,0 +1,17 @@
+services:
+  mega:
+    build: .
+    container_name: mega-sync
+    restart: unless-stopped
+    environment:
+      - SYNC_LOCAL_1=/data/docs
+      - SYNC_REMOTE_1=/CloudDrive/Documents
+      - SYNC_LOCAL_2=/data/photos
+      - SYNC_REMOTE_2=/CloudDrive/Photos
+    volumes:
+      # Persist Session
+      - ./mega-session:/root/.megaCmd
+
+      # Mount your host folders to container paths
+      - ./my-documents:/data/docs
+      - ./my-photos:/data/photos
