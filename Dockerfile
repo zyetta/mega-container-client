@@ -9,8 +9,12 @@ WORKDIR /root
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
+    rsync \
     ca-certificates \
     fuse \
+    dbus \
+    python3 \
+    python3-flask \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,6 +32,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
 
 COPY scripts/entrypoint.sh /entrypoint.sh
 COPY scripts/monitor.sh /monitor.sh
+COPY scripts/server.py /server.py
 RUN chmod +x /entrypoint.sh /monitor.sh
 
 CMD ["/entrypoint.sh"]

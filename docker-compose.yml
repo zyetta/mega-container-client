@@ -11,8 +11,8 @@ services:
       - SYNC_REMOTE_2=/CloudDrive/Photos
 
       # Monitoring
-      - GOTIFY_URL=https://gotify.example.com
-      - GOTIFY_TOKEN=your_app_token
+      - GOTIFY_URL=https://gotify.app.artesian.co.za
+      - GOTIFY_TOKEN=A7kLvHZ4Ns8NvXQ
     volumes:
       # Persist Session
       - ./mega-session:/root/.megaCmd
