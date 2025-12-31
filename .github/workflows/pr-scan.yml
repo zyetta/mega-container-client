@@ -1,0 +1,80 @@
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: mega-sync:test
+          platforms: linux/amd64
+
+      # 1. Run Trivy to generate the report (does not fail the build)
+      - name: Run Trivy scanner (Report)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'mega-sync:test'
+          format: 'table'
+          output: 'trivy-results.txt'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      # 2. Post the report as a PR comment
+      - name: Comment Trivy Results
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const results = fs.readFileSync('trivy-results.txt', 'utf8');
+              const output = `#### 🛡️ Trivy Security Scan Results
+              
+              <details><summary>Click to expand details</summary>
+
+              \`\`\`
+              ${results}
+              \`\`\`
+
+              </details>
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              })
+            } catch (error) {
+              console.log('No trivy results found or error reading file');
+            }
+
+      # 3. Run Trivy again to fail the build if vulnerabilities exist
+      - name: Run Trivy scanner (Fail)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'mega-sync:test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
