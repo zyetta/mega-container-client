@@ -1,6 +1,7 @@
 # MEGAcmd Docker with 2FA Support (Multi-Arch)
 
 A Docker container for MEGAcmd (Mega.nz) designed for **ARM64** (Apple Silicon, Raspberry Pi) and **AMD64** (Intel/AMD) devices.
+Github Repository: https://github.com/zyetta/mega-container-client
 
 It handles:
 * **2FA Authentication**: Persists session via volumes so you only login once.
