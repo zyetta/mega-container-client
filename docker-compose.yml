@@ -4,14 +4,19 @@ services:
     container_name: mega-sync
     restart: unless-stopped
     environment:
+      # Sync Directories
       - SYNC_LOCAL_1=/data/docs
       - SYNC_REMOTE_1=/CloudDrive/Documents
       - SYNC_LOCAL_2=/data/photos
       - SYNC_REMOTE_2=/CloudDrive/Photos
+
+      # Monitoring
+      - GOTIFY_URL=https://gotify.example.com
+      - GOTIFY_TOKEN=your_app_token
     volumes:
       # Persist Session
       - ./mega-session:/root/.megaCmd
 
-      # Mount your host folders to container paths
+      # Mounted folders mapped to sync directories (above)
       - ./my-documents:/data/docs
       - ./my-photos:/data/photos

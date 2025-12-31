@@ -8,6 +8,7 @@ WORKDIR /root
 
 RUN apt-get update && apt-get install -y \
     wget \
+    curl \
     ca-certificates \
     fuse \
     --no-install-recommends \
@@ -25,7 +26,8 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     && rm megacmd.deb \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY scripts/entrypoint.sh /entrypoint.sh
+COPY scripts/monitor.sh /monitor.sh
+RUN chmod +x /entrypoint.sh /monitor.sh
 
 CMD ["/entrypoint.sh"]
