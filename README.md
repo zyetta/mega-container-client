@@ -1,9 +1,11 @@
 # MEGAcmd Docker with 2FA Support (Multi-Arch)
 
 A Docker container for MEGAcmd (Mega.nz) designed for **ARM64** (Apple Silicon, Raspberry Pi) and **AMD64** (Intel/AMD) devices.
+Github Repository: https://github.com/zyetta/mega-container-client
 
 It handles:
 * **2FA Authentication**: Persists session via volumes so you only login once.
+* **Web UI**: Simple interface for logging in and viewing status.
 * **Auto-Sync**: Automatically configures sync pairs using environment variables.
 * **Auto-Healing**: Checks sync status on container restarts.
 * **Monitoring & Alerts**: Logs transactions and sends Gotify alerts on errors.
@@ -18,6 +20,8 @@ services:
     image: zyetta/mega-sync:latest
     container_name: mega-sync
     restart: unless-stopped
+    ports:
+      - "8888:8888" # Web UI Port
     environment:
       # Pair 1
       - SYNC_LOCAL_1=/data/documents
@@ -41,35 +45,23 @@ services:
 
 Because MEGA requires 2FA, you cannot login via environment variables. You must do it interactively one time.
 
-Start the container:
-```bash
-docker compose up -d
-```
+1. Start the container:
+   ```bash
+   docker compose up -d
+   ```
 
-Enter the container:
-```bash
-docker exec -it mega-sync bash
-```
+2. Open the Web UI:
+   Go to **http://localhost:8888** in your browser.
 
-Login manually:
-```bash
-mega-login your@email.com "your_password" --auth-code=123456
-```
+3. Login:
+   Enter your Email, Password, and 2FA Code (if enabled).
 
-Wait for the login to succeed and fetch your file list.
+4. **Done!**
+   The container's "Watchdog" will detect the login and automatically configure your sync folders within 30 seconds.
 
-Exit the container:
-```bash
-exit
-```
+### 3. Monitoring
 
-### 3. Activate Sync
-
-Now that you are logged in, restart the container. The startup script will detect your session and automatically configure the sync folders defined in your environment variables.
-
-```bash
-docker compose restart mega-sync
-```
+You can check the status of your syncs at any time by visiting **http://localhost:8888**.
 
 ## Configuration
 

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Gotify Configuration
 GOTIFY_URL="${GOTIFY_URL:-}"
 GOTIFY_TOKEN="${GOTIFY_TOKEN:-}"
 
@@ -18,7 +19,11 @@ send_gotify() {
 
 echo "Starting Monitor..."
 
+# Monitor loop
 while true; do
+    echo "---------------------------------------------------"
+    echo "[Monitor] Checking status at $(date)"
+
     # 1. Check if MEGAcmd server is running
     if ! pgrep -x "mega-cmd-server" > /dev/null; then
         echo "[ERROR] mega-cmd-server is not running!"
@@ -26,20 +31,27 @@ while true; do
     fi
 
     # 2. Check Sync Status
-    SYNC_STATUS=$(mega-sync)
+    # We print the full status so the user can see what's happening (Synced, Scanning, etc.)
+    SYNC_OUTPUT=$(mega-sync)
+    echo "[Monitor] Sync Status:"
+    echo "$SYNC_OUTPUT"
     
-    if echo "$SYNC_STATUS" | grep -qiE "Error|Failed|Suspended"; then
-        echo "[ERROR] Sync issue detected:"
-        echo "$SYNC_STATUS"
-        send_gotify "MEGA Sync Issue" "Sync status contains errors:\n$SYNC_STATUS" 5
+    # Check for errors in the output
+    if echo "$SYNC_OUTPUT" | grep -qiE "Error|Failed|Suspended"; then
+        echo "[ERROR] Sync issue detected!"
+        send_gotify "MEGA Sync Issue" "Sync status contains errors:\n$SYNC_OUTPUT" 5
     fi
 
     # 3. Log Transactions
+    # mega-transfers shows active transfers.
     TRANSFERS=$(mega-transfers)
     if [ -n "$TRANSFERS" ]; then
-        echo "[INFO] Active Transfers:"
+        echo "[Monitor] Active Transfers:"
         echo "$TRANSFERS"
+    else
+        echo "[Monitor] No active transfers."
     fi
 
+    echo "---------------------------------------------------"
     sleep 60
 done
