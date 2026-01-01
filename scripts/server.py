@@ -297,8 +297,7 @@ HTML_TEMPLATE = """
                 .catch(err => console.error("Poll failed", err));
         }
 
-        // Poll every 3 seconds
-        setInterval(updateDashboard, 3000);
+        setInterval(updateDashboard, 10000);
     </script>
 </body>
 </html>
