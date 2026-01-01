@@ -2,71 +2,78 @@
 set -e
 
 # -----------------------------------------------------------------------------------------
-# 1. MACHINE ID PERSISTENCE (CRITICAL FIX)
+# USER & PERMISSIONS SETUP
 # -----------------------------------------------------------------------------------------
-# Ensure the folder exists
-mkdir -p /root/.megaCmd
+PUID=${PUID:-1000}
+PGID=${PGID:-1000}
 
-# If we don't have a stored ID, generate one using uuidgen
-if [ ! -f /root/.megaCmd/machine-id ]; then
-    echo "[Init] Generating new persistent Machine ID..."
-    uuidgen > /root/.megaCmd/machine-id
+echo "[Init] Setting up user with PUID=$PUID and PGID=$PGID"
+
+# Create group if it doesn't exist
+if ! getent group mega > /dev/null 2>&1; then
+    groupadd -g "$PGID" mega
 fi
 
-# Apply the stored ID to the system so MEGA sees the "same computer"
-cp /root/.megaCmd/machine-id /etc/machine-id
-echo "[Init] Machine ID restored: $(cat /etc/machine-id)"
+# Create user if it doesn't exist
+if ! id -u mega > /dev/null 2>&1; then
+    useradd -u "$PUID" -g "$PGID" -m -d /app/config mega
+fi
+
+# Ensure permissions
+chown -R mega:mega /app
+
+# Define config directory
+CONFIG_DIR="/app/config/.megaCmd"
+mkdir -p "$CONFIG_DIR"
+chown -R mega:mega /app/config
 
 # -----------------------------------------------------------------------------------------
-# 2. SOCKET CLEANUP
+# SOCKET CLEANUP
 # -----------------------------------------------------------------------------------------
-if [ -e /root/.megaCmd/megacmd.socket ]; then
+if [ -e "$CONFIG_DIR/megacmd.socket" ]; then
     echo "[Init] Removing stale socket file..."
-    rm -f /root/.megaCmd/megacmd.socket
+    rm -f "$CONFIG_DIR/megacmd.socket"
 fi
 
-if [ -e /root/.megaCmd/megacmd.lock ]; then
+if [ -e "$CONFIG_DIR/megacmd.lock" ]; then
     echo "[Init] Removing stale lock file..."
-    rm -f /root/.megaCmd/megacmd.lock
+    rm -f "$CONFIG_DIR/megacmd.lock"
 fi
 
 # -----------------------------------------------------------------------------------------
-# 3. START SERVER
+# START SERVER (AS USER)
 # -----------------------------------------------------------------------------------------
-echo "[Init] Starting MEGAcmd server..."
-mega-cmd-server &
+echo "Starting MEGAcmd server as user 'mega'..."
+gosu mega mega-cmd-server &
 SERVER_PID=$!
 
 # -----------------------------------------------------------------------------------------
-# 4. START WEB UI
+# START WEB UI (AS USER)
 # -----------------------------------------------------------------------------------------
-echo "[Init] Starting Web UI on port 5000..."
-# Ensure you are using the correct port here (5000 matches the python code provided earlier)
-python3 /root/server.py &
+echo "Starting Web UI on port 8888..."
+gosu mega python3 /app/server.py &
 
 # -----------------------------------------------------------------------------------------
-# 5. SYNC WATCHDOG FUNCTION
+# SYNC WATCHDOG FUNCTION
 # -----------------------------------------------------------------------------------------
 sync_watchdog() {
     echo "[Watchdog] Starting Sync Watchdog..."
-
-    # Initial delay to let server start and load session
+    
+    # Initial delay to let server start
     sleep 10
-
+    
     while true; do
         # Check if server is running
         if ! kill -0 $SERVER_PID 2>/dev/null; then
-            echo "[Watchdog] Server process died. Exiting."
+            echo "[Watchdog] Server process died. Exiting watchdog."
             exit 1
         fi
 
-        # Check Login Status
-        # We use || true to prevent script exit on error code
-        STATUS=$(mega-whoami 2>&1 || true)
-
+        # Check Login Status (run as user)
+        STATUS=$(gosu mega mega-whoami 2>&1 || true)
+        
         if echo "$STATUS" | grep -q "Not logged in"; then
-            # Silent wait - the user needs to use the Web UI
-            :
+            echo "[Watchdog] Not logged in. Waiting for user to login via Web UI..."
         elif [[ "$STATUS" == *"Unable to connect"* ]]; then
             echo "[Watchdog] Server not ready yet..."
         else
@@ -79,49 +86,48 @@ sync_watchdog() {
                 REMOTE_PATH="${!VAR_REMOTE}"
 
                 if [ -n "$LOCAL_PATH" ] && [ -n "$REMOTE_PATH" ]; then
-
-                    # Check if sync is active.
-                    # We check specifically for the local path string in the output
-                    if mega-sync | grep -q "$LOCAL_PATH"; then
-                        : # Already active
+                    # Check if sync is already active
+                    if gosu mega mega-sync | grep -q "$LOCAL_PATH"; then
+                        :
                     else
-                        echo "[Watchdog] Configuring: $LOCAL_PATH -> $REMOTE_PATH"
+                        echo "[Watchdog] Sync missing for [$i]. Configuring: $LOCAL_PATH -> $REMOTE_PATH"
+                        
+                        gosu mega mega-mkdir -p "$REMOTE_PATH" || true
 
-                        # Ensure remote exists (silent fail allowed)
-                        mega-mkdir -p "$REMOTE_PATH" > /dev/null 2>&1 || true
-
-                        # Try to add sync
-                        if ! OUTPUT=$(mega-sync "$LOCAL_PATH" "$REMOTE_PATH" 2>&1); then
-                            # Check for "Already exists" which is not a real failure
-                            if echo "$OUTPUT" | grep -q "Folder already exists"; then
-                                echo "[Watchdog] Sync relinked (Folder existed)."
-                            elif echo "$OUTPUT" | grep -q "Unable to retrieve the ID"; then
-                                echo "[CRITICAL] Device ID Mismatch detected."
-                                # We DO NOT delete the session here immediately to avoid loops.
-                                # The Machine ID fix at the top should prevent this.
-                            else
-                                echo "[Watchdog] Failed to add sync: $OUTPUT"
+                        if ! OUTPUT=$(gosu mega mega-sync "$LOCAL_PATH" "$REMOTE_PATH" 2>&1); then
+                            echo "[Watchdog] Failed to add sync: $OUTPUT"
+                            
+                            if echo "$OUTPUT" | grep -q "Unable to retrieve the ID of current device"; then
+                                echo "[CRITICAL] Session corrupted. Resetting session..."
+                                rm -f "$CONFIG_DIR/session"
+                                kill $SERVER_PID
+                                exit 1
                             fi
                         else
-                            echo "[Watchdog] Sync added successfully."
+                            echo "[Watchdog] Sync configured successfully."
                         fi
                     fi
                 fi
             done
         fi
-
-        # Check every 60 seconds to be less aggressive
-        sleep 60
+        
+        sleep 30
     done
 }
 
 # -----------------------------------------------------------------------------------------
-# 6. MAIN LOOP
+# START BACKGROUND PROCESSES
 # -----------------------------------------------------------------------------------------
 
-# Start watchdog in background
+# Start the sync watchdog in background
 sync_watchdog &
 
-# Tail logs to keep container alive and show output
-touch /root/.megaCmd/megacmd.log
-tail -f /root/.megaCmd/megacmd.log
+# Start the monitor script in background (run as user)
+gosu mega /app/monitor.sh &
+
+# -----------------------------------------------------------------------------------------
+# MAIN LOG LOOP
+# -----------------------------------------------------------------------------------------
+touch "$CONFIG_DIR/megacmd.log"
+chown mega:mega "$CONFIG_DIR/megacmd.log"
+tail -f "$CONFIG_DIR/megacmd.log"
