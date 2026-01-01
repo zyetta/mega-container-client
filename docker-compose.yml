@@ -11,10 +11,12 @@ services:
       - SYNC_REMOTE_1=/CloudDrive/Documents
       - SYNC_LOCAL_2=/data/photos
       - SYNC_REMOTE_2=/CloudDrive/Photos
+      - PUID=${USER_ID}
+      - PGID=${USER_ID}
 
       # Monitoring
-      - GOTIFY_URL=https://gotify.app.artesian.co.za
-      - GOTIFY_TOKEN=A7kLvHZ4Ns8NvXQ
+      - GOTIFY_URL={GOTIFY_URL}
+      - GOTIFY_TOKEN={GOTIFY_TOKEN}
     volumes:
       # Persist Session
       - ./mega-session:/root/.megaCmd
