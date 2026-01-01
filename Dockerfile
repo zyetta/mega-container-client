@@ -33,4 +33,6 @@ COPY scripts/monitor.sh /monitor.sh
 COPY scripts/server.py /root/server.py
 RUN chmod +x /entrypoint.sh /monitor.sh
 
+EXPOSE 5000
+
 CMD ["/entrypoint.sh"]
