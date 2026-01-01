@@ -1,7 +1,6 @@
 # MEGAcmd Docker with 2FA Support (Multi-Arch)
 
 A Docker container for MEGAcmd (Mega.nz) designed for **ARM64** (Apple Silicon, Raspberry Pi) and **AMD64** (Intel/AMD) devices.
-Github Repository: https://github.com/zyetta/mega-container-client
 
 It handles:
 * **2FA Authentication**: Persists session via volumes so you only login once.
@@ -9,6 +8,7 @@ It handles:
 * **Auto-Sync**: Automatically configures sync pairs using environment variables.
 * **Auto-Healing**: Checks sync status on container restarts.
 * **Monitoring & Alerts**: Logs transactions and sends Gotify alerts on errors.
+* **User Permissions**: Supports PUID/PGID to match host permissions.
 
 ## Quick Start
 
@@ -23,6 +23,9 @@ services:
     ports:
       - "8888:8888" # Web UI Port
     environment:
+      - PUID=1000 # Optional: User ID
+      - PGID=1000 # Optional: Group ID
+      
       # Pair 1
       - SYNC_LOCAL_1=/data/documents
       - SYNC_REMOTE_1=/CloudDrive/Documents
@@ -35,7 +38,7 @@ services:
       - GOTIFY_TOKEN=your_app_token
     volumes:
       # CONFIG: Stores your login session (CRITICAL)
-      - ./mega-session:/root/.megaCmd
+      - ./mega-session:/app/config/.megaCmd
       # DATA: Your local folders to sync
       - ./my-documents:/data/documents
       - ./my-photos:/data/photos
@@ -71,6 +74,8 @@ You can add as many sync pairs as needed by incrementing the number (up to 10 by
 
 | Variable | Description |
 | --- | --- |
+| PUID | User ID to run the application as (default: 1000) |
+| PGID | Group ID to run the application as (default: 1000) |
 | SYNC_LOCAL_X | The path inside the container (mapped to your host) |
 | SYNC_REMOTE_X | The path on your MEGA Cloud Drive |
 | GOTIFY_URL | (Optional) URL of your Gotify server |
@@ -80,7 +85,7 @@ You can add as many sync pairs as needed by incrementing the number (up to 10 by
 
 | Volume | Description |
 | --- | --- |
-| /root/.megaCmd | Required. Stores session ID and cache. Map this to a host folder to survive restarts. |
+| /app/config/.megaCmd | Required. Stores session ID and cache. Map this to a host folder to survive restarts. |
 
 ## Building Locally
 
